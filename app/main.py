@@ -128,6 +128,12 @@ def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/classic", include_in_schema=False)
+def classic() -> FileResponse:
+    """旧版功能页面（新版上线期间的备用入口）。"""
+    return FileResponse(STATIC_DIR / "classic.html")
+
+
 @app.get("/healthz", include_in_schema=False)
 def healthz() -> dict[str, str]:
     return {"ok": "true"}
