@@ -83,20 +83,18 @@ uvicorn app.main:app --port 8600
 `SECRET_KEY` / `ASANA_CLIENT_ID` / `ASANA_CLIENT_SECRET` / `ASANA_REDIRECT_URI`
 （`BASE_URL` 设为正式域名）。
 
-## 生产部署（the deploy host · asana.artexbridge.com）
+## 生产部署（asana.artexbridge.com）
 
-实际部署在 `the deploy host`（Debian 12，与 bridge/chatwoot 同机）：
+部署在自有服务器（Debian 12）：
 
-- 代码：`/opt/asana_backup`（GitHub 私有库 `panfu/asana_backup`，服务器
-  deploy key `~/.ssh/asana_backup_ed25519` 拉取）
+- 代码：`/opt/asana_backup`（GitHub 私有库，服务器 deploy key 拉取）
 - 运行：systemd `asana-backup.service` → uvicorn `127.0.0.1:8600`（开机自启）
-- 入口：nginx `sites-enabled/asana-backup` → HTTPS（Certbot，证书自动续期）
-- 配置：`/opt/asana_backup/.env`（OAuth 凭据 + `SECRET_KEY`，权限 600）
+- 入口：nginx 反代 → HTTPS（Certbot，证书自动续期）
+- 配置：`/opt/asana_backup/.env`（OAuth 凭据 + `SECRET_KEY`，权限 600，不入库）
 
-更新流程：
+更新流程（在部署机上）：
 
 ```bash
-ssh  root@the deploy host
 cd /opt/asana_backup && git pull && uv sync
 systemctl restart asana-backup
 curl -s http://127.0.0.1:8600/healthz

@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Asana → Obsidian Vault · 一次性迁移</title>
-<meta name="description" content="把 Asana 项目一次性导出为 Obsidian Vault（Markdown + 附件）。读取一次、生成一次、下载后删除。">
+<title>Asana → Obsidian Vault · one-time migration</title>
+<meta name="description" content="Move your Asana projects into an Obsidian Vault. Read once, generate once, delete after download.">
 <style>
-/* 设计语言参考 keyphore.barrybarrywu.com：极简单色、纸/墨双色、细线圆角卡片 */
+/* 设计语言参考 keyphore.barrybarrywu.com：极简单色、纸/墨双色、细线圆角卡片
+   图标：Remix Icon（Apache-2.0），内联 SVG sprite，currentColor 填充 */
 :root {
   color-scheme: light dark;
   --paper: #fafafa;
@@ -46,6 +47,7 @@ button, .primary-button { transition: transform 140ms var(--ease-out); }
 button:active, .primary-button:active { transform: scale(.97); }
 [hidden] { display: none !important; }
 .hidden { display: none !important; }
+.ic { width: 1em; height: 1em; fill: currentColor; vertical-align: -0.12em; flex: none; }
 
 .site-header, main, footer { width: min(100% - 80px, 1040px); margin-inline: auto; }
 
@@ -53,44 +55,63 @@ button:active, .primary-button:active { transform: scale(.97); }
 .nav-shell { position: sticky; top: 0; z-index: 10; padding-top: 14px; pointer-events: none; }
 .site-header {
   height: 56px; display: grid; grid-template-columns: auto 1fr auto; align-items: center;
-  gap: 32px; padding: 0 10px 0 20px; border-radius: 999px; pointer-events: auto;
+  gap: 24px; padding: 0 10px 0 20px; border-radius: 999px; pointer-events: auto;
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   box-shadow: inset 0 0 0 1px var(--line), 0 8px 28px -10px #00000020;
   backdrop-filter: blur(20px) saturate(1.7); -webkit-backdrop-filter: blur(20px) saturate(1.7);
 }
 .wordmark { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 650; letter-spacing: -.5px; }
-.brand-mark { display: block; width: 28px; height: 28px; }
-.site-header nav { display: flex; align-items: center; justify-content: center; gap: 28px; font-size: 13px; }
-.site-header nav a { display: inline-flex; align-items: center; min-height: 40px; white-space: nowrap; }
-.nav-actions { display: flex; align-items: center; gap: 8px; }
-.ghost-pill {
-  display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 15px;
-  border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; color: var(--muted);
+.wordmark .ic { width: 24px; height: 24px; }
+.nav-actions { display: flex; align-items: center; gap: 20px; font-size: 13px; }
+.nav-actions > a { display: inline-flex; align-items: center; min-height: 40px; white-space: nowrap; color: var(--muted); }
+.nav-actions > a:hover { color: var(--ink); }
+.gh-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%; color: var(--muted);
 }
-@media (hover: hover) and (pointer: fine) {
-  .site-header nav a:hover, footer a:hover { text-decoration: underline; text-underline-offset: 4px; }
-  .ghost-pill:hover { color: var(--ink); }
+.gh-link .ic { width: 19px; height: 19px; }
+@media (hover: hover) {
+  .gh-link:hover { color: var(--ink); background: var(--surface); }
+  footer a:hover { text-decoration: underline; text-underline-offset: 4px; }
   .primary-button:hover, .download-btn:hover { opacity: .88; }
 }
 
+/* 语言切换（keyphore language-picker 样式） */
+.language-picker { position: relative; font-size: 13px; }
+.language-picker summary {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 36px; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  list-style: none; color: var(--muted); white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.language-picker summary::-webkit-details-marker { display: none; }
+.language-picker summary .ic { width: 15px; height: 15px; }
+@media (hover: hover) { .language-picker summary:hover { color: var(--ink); } }
+.language-options {
+  position: absolute; right: 0; top: calc(100% + 12px); min-width: 150px;
+  padding: 6px; border-radius: 14px; background: var(--paper);
+  box-shadow: 0 0 0 1px var(--line), 0 12px 32px #00000024; z-index: 20;
+}
+.language-options button {
+  display: block; width: 100%; text-align: left; border: 0; border-radius: 8px;
+  padding: 8px 12px; min-height: 38px; background: transparent; font-size: 13.5px; white-space: nowrap;
+}
+.language-options button[aria-pressed="true"] { color: var(--ink); background: var(--surface); font-weight: 550; }
+@media (hover: hover) { .language-options button:hover { color: var(--ink); background: var(--surface); } }
+
 /* ---- Hero ---- */
 .hero { text-align: center; padding: 44px 0 12px; }
-.eyebrow { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 23px; font-size: 12px; color: var(--muted); }
+.eyebrow { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 23px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 .tiny-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
-h1 { font-family: "Avenir Next", "PingFang SC", sans-serif; font-size: clamp(34px, 5.2vw, 58px); font-weight: 600; letter-spacing: -1.8px; line-height: 1.25; margin: 0; text-wrap: balance; }
+h1 { font-family: "Avenir Next", "PingFang SC", sans-serif; font-size: clamp(34px, 5.2vw, 58px); font-weight: 600; letter-spacing: -2.5px; line-height: 1.25; margin: 0; text-wrap: balance; }
+html[lang^="zh"] h1 { letter-spacing: -1.5px; }
 .lead { font-size: 16.5px; color: var(--muted); margin: 18px auto 0; line-height: 1.8; max-width: 60ch; text-wrap: pretty; }
 .lead strong { color: var(--ink); font-weight: 550; }
 
 /* ---- 向导卡 ---- */
-.wizard {
-  margin: 40px 0 0; padding: 32px 34px 34px;
-  border: 1px solid var(--line); border-radius: 20px; background: var(--paper);
-}
+.wizard { margin: 40px 0 0; padding: 32px 34px 34px; border: 1px solid var(--line); border-radius: 20px; background: var(--paper); }
 .steps { display: flex; align-items: center; justify-content: center; gap: 0; margin: 0 0 30px; padding: 0; list-style: none; }
-.steps li {
-  display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted);
-  white-space: nowrap; transition: color .25s;
-}
+.steps li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); white-space: nowrap; transition: color .25s; }
 .steps li + li::before { content: ""; width: 34px; height: 1px; background: var(--line); margin: 0 14px; }
 .step-no {
   display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
@@ -99,7 +120,6 @@ h1 { font-family: "Avenir Next", "PingFang SC", sans-serif; font-size: clamp(34p
 }
 .steps li.active { color: var(--ink); font-weight: 600; }
 .steps li.active .step-no { background: var(--ink); color: var(--paper); }
-.steps li.done { color: var(--muted); }
 .steps li.done .step-no { background: var(--surface); color: var(--ok); }
 
 h2 { font-size: 17px; font-weight: 600; margin: 0 0 6px; letter-spacing: -.3px; }
@@ -107,25 +127,24 @@ h2 { font-size: 17px; font-weight: 600; margin: 0 0 6px; letter-spacing: -.3px; 
 
 /* 按钮 */
 .primary-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 44px; padding: 10px 24px; background: var(--ink); color: var(--paper);
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  min-height: 44px; padding: 10px 22px; background: var(--ink); color: var(--paper);
   border: 0; border-radius: 9px; font-size: 14px; font-weight: 550; white-space: nowrap;
 }
 .primary-button:disabled { opacity: .35; cursor: not-allowed; }
+.primary-button .ic { width: 15px; height: 15px; }
 .text-button {
-  display: inline-flex; align-items: center; min-height: 40px; border: 0; background: none;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; border: 0; background: none;
   color: var(--muted); font-size: 13px; padding: 6px 10px; border-radius: 8px;
 }
+.text-button .ic { width: 14px; height: 14px; }
 @media (hover: hover) { .text-button:hover { color: var(--ink); } }
 
 /* 步骤 1：连接 */
 .connect-box { display: grid; justify-items: center; text-align: center; padding: 26px 0 10px; }
 .connect-box .panel-hint { margin-inline: auto; }
 .identity { display: flex; align-items: center; gap: 14px; justify-content: center; margin-bottom: 6px; }
-.avatar {
-  width: 44px; height: 44px; border-radius: 50%; background: var(--ink); color: var(--paper);
-  display: grid; place-items: center; font-weight: 650; font-size: 18px;
-}
+.avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-weight: 650; font-size: 18px; }
 .dev-badge {
   display: inline-block; margin-left: 8px; padding: 2px 10px; border-radius: 999px;
   background: var(--surface); color: var(--muted); font-size: 11.5px; font-weight: 500; letter-spacing: .02em;
@@ -151,10 +170,7 @@ select {
 .loading-line { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; padding: 10px 2px; }
 
 /* 选项 */
-.opt {
-  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
-  border-radius: 12px; background: var(--surface); cursor: pointer; margin-bottom: 10px;
-}
+.opt { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 12px; background: var(--surface); cursor: pointer; margin-bottom: 10px; }
 @media (hover: hover) { .opt:hover { box-shadow: inset 0 0 0 1px var(--line); } }
 .opt input[type="checkbox"] { width: 15px; height: 15px; margin-top: 4px; accent-color: var(--ink); }
 .opt .t { font-size: 14px; font-weight: 550; }
@@ -165,6 +181,7 @@ select {
   font-family: "Avenir Next", "PingFang SC", sans-serif; font-size: 46px; font-weight: 600;
   letter-spacing: -2px; text-align: center; margin: 10px 0 2px; font-variant-numeric: tabular-nums;
 }
+html[lang^="zh"] .progress-num { letter-spacing: -1px; }
 .progress-outer { background: var(--surface); border-radius: 999px; height: 8px; overflow: hidden; margin: 12px 0 10px; }
 .progress-inner { background: var(--ink); height: 100%; width: 0%; transition: width .6s var(--ease-out); border-radius: 999px; }
 .progress-label { text-align: center; color: var(--muted); font-size: 13px; min-height: 24px; }
@@ -178,13 +195,10 @@ select {
 .download-btn {
   display: flex; align-items: center; justify-content: center; gap: 16px;
   min-height: 60px; padding: 10px 26px 10px 10px; margin-top: 18px;
-  background: var(--ink); color: var(--paper); border-radius: 16px;
-  font-size: 14px; font-weight: 550;
+  background: var(--ink); color: var(--paper); border-radius: 16px; font-size: 14px; font-weight: 550;
 }
-.download-icon {
-  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 11px;
-  background: var(--paper); color: var(--ink); flex: none;
-}
+.download-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 11px; background: var(--paper); color: var(--ink); flex: none; }
+.download-icon .ic { width: 22px; height: 22px; }
 .download-copy { display: flex; flex-direction: column; text-align: left; line-height: 1.2; }
 .download-label { font-size: 11.5px; font-weight: 400; opacity: .72; }
 .download-copy strong { font-size: 21px; font-weight: 650; letter-spacing: -.6px; margin-top: 3px; }
@@ -197,8 +211,8 @@ select {
 /* ---- 流程说明 ---- */
 .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 40px 0 0; }
 .pipe-node { padding: 16px 14px; border: 1px solid var(--line); border-radius: 14px; text-align: center; }
-.pipe-node .ic { font-size: 20px; }
-.pipe-node .t { font-size: 12.5px; font-weight: 600; margin-top: 4px; }
+.pipe-node .ic { width: 21px; height: 21px; color: var(--ink); }
+.pipe-node .t { font-size: 12.5px; font-weight: 600; margin-top: 6px; }
 .pipe-node .d { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 
 /* ---- 隐私承诺 ---- */
@@ -209,7 +223,7 @@ select {
 .compatibility li { display: flex; gap: 10px; padding: 10px 0; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); }
 .compatibility li:first-child { border-top: none; }
 .compatibility li strong { color: var(--ink); font-weight: 550; }
-.compatibility .ic { color: var(--ok); flex-shrink: 0; font-size: 13px; }
+.compatibility .ic { color: var(--ok); flex-shrink: 0; width: 14px; height: 14px; margin-top: 4px; }
 .compatibility a { color: var(--ink); }
 
 /* ---- footer ---- */
@@ -221,12 +235,12 @@ footer { border-top: 1px solid var(--line); padding: 24px 0 30px; margin-top: 56
 @media (max-width: 760px) {
   .site-header, main, footer { width: calc(100% - 36px); }
   .nav-shell { padding-top: 10px; }
-  .site-header { grid-template-columns: 1fr auto; height: auto; padding: 8px 12px; gap: 4px 12px; }
-  .site-header nav { display: none; }
+  .site-header { grid-template-columns: auto auto; height: auto; padding: 8px 12px; gap: 8px; }
+  .site-header .nav-links { display: none; }
   .wordmark { font-size: 15px; }
-  .brand-mark { width: 24px; height: 24px; }
+  .wordmark .ic { width: 21px; height: 21px; }
+  .nav-actions { gap: 10px; margin-left: auto; }
   .hero { padding: 30px 0 6px; }
-  h1 { letter-spacing: -1.3px; }
   .lead { font-size: 14.5px; }
   .wizard { padding: 22px 16px 26px; margin-top: 28px; }
   .steps li + li::before { width: 14px; margin: 0 8px; }
@@ -245,21 +259,44 @@ footer { border-top: 1px solid var(--line); padding: 24px 0 30px; margin-top: 56
 </head>
 <body>
 
+<!-- Remix Icon (Apache-2.0) inline sprite -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<symbol id="i-stack" viewBox="0 0 24 24"><path d="M20.0833 15.1999L21.2854 15.9212C21.5221 16.0633 21.5989 16.3704 21.4569 16.6072C21.4146 16.6776 21.3557 16.7365 21.2854 16.7787L12.5144 22.0412C12.1977 22.2313 11.8021 22.2313 11.4854 22.0412L2.71451 16.7787C2.47772 16.6366 2.40093 16.3295 2.54301 16.0927C2.58523 16.0223 2.64413 15.9634 2.71451 15.9212L3.9166 15.1999L11.9999 20.0499L20.0833 15.1999ZM20.0833 10.4999L21.2854 11.2212C21.5221 11.3633 21.5989 11.6704 21.4569 11.9072C21.4146 11.9776 21.3557 12.0365 21.2854 12.0787L11.9999 17.6499L2.71451 12.0787C2.47772 11.9366 2.40093 11.6295 2.54301 11.3927C2.58523 11.3223 2.64413 11.2634 2.71451 11.2212L3.9166 10.4999L11.9999 15.3499L20.0833 10.4999ZM12.5144 1.30864L21.2854 6.5712C21.5221 6.71327 21.5989 7.0204 21.4569 7.25719C21.4146 7.32757 21.3557 7.38647 21.2854 7.42869L11.9999 12.9999L2.71451 7.42869C2.47772 7.28662 2.40093 6.97949 2.54301 6.7427C2.58523 6.67232 2.64413 6.61343 2.71451 6.5712L11.4854 1.30864C11.8021 1.11864 12.1977 1.11864 12.5144 1.30864ZM11.9999 3.33233L5.88723 6.99995L11.9999 10.6676L18.1126 6.99995L11.9999 3.33233Z"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 1L20.2169 2.82598C20.6745 2.92766 21 3.33347 21 3.80217V13.7889C21 15.795 19.9974 17.6684 18.3282 18.7812L12 23L5.6718 18.7812C4.00261 17.6684 3 15.795 3 13.7889V3.80217C3 3.33347 3.32553 2.92766 3.78307 2.82598L12 1ZM12 3.04879L5 4.60434V13.7889C5 15.1263 5.6684 16.3752 6.7812 17.1171L12 20.5963L17.2188 17.1171C18.3316 16.3752 19 15.1263 19 13.7889V4.60434L12 3.04879ZM12 7C13.1046 7 14 7.89543 14 9C14 9.73984 13.5983 10.3858 13.0011 10.7318L13 15H11L10.9999 10.7324C10.4022 10.3866 10 9.74025 10 9C10 7.89543 10.8954 7 12 7Z"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M13 10H18L12 16L6 10H11V3H13V10ZM4 19H20V12H22V20C22 20.5523 21.5523 21 21 21H3C2.44772 21 2 20.5523 2 20V12H4V19Z"/></symbol>
+<symbol id="i-filetext" viewBox="0 0 24 24"><path d="M21 8V20.9932C21 21.5501 20.5552 22 20.0066 22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.4487 2 4.00221 2H14.9968L21 8ZM19 9H14V4H5V20H19V9ZM8 7H11V9H8V7ZM8 11H16V13H8V11ZM8 15H16V17H8V15Z"/></symbol>
+<symbol id="i-filezip" viewBox="0 0 24 24"><path d="M20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3V21C21 21.5523 20.5523 22 20 22ZM19 20V4H5V20H19ZM14 12V17H10V14H12V12H14ZM12 4H14V6H12V4ZM10 6H12V8H10V6ZM12 8H14V10H12V8ZM10 10H12V12H10V10Z"/></symbol>
+<symbol id="i-bin" viewBox="0 0 24 24"><path d="M17 6H22V8H20V21C20 21.5523 19.5523 22 19 22H5C4.44772 22 4 21.5523 4 21V8H2V6H7V3C7 2.44772 7.44772 2 8 2H16C16.5523 2 17 2.44772 17 3V6ZM18 8H6V20H18V8ZM9 11H11V17H9V11ZM13 11H15V17H13V11ZM9 4V6H15V4H9Z"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24"><path d="M5.88401 18.6533C5.58404 18.4526 5.32587 18.1975 5.0239 17.8369C4.91473 17.7065 4.47283 17.1524 4.55811 17.2583C4.09533 16.6833 3.80296 16.417 3.50156 16.3089C2.9817 16.1225 2.7114 15.5499 2.89784 15.0301C3.08428 14.5102 3.65685 14.2399 4.17672 14.4263C4.92936 14.6963 5.43847 15.1611 6.12425 16.0143C6.03025 15.8974 6.46364 16.441 6.55731 16.5529C6.74784 16.7804 6.88732 16.9182 6.99629 16.9911C7.20118 17.1283 7.58451 17.1874 8.14709 17.1311C8.17065 16.7489 8.24136 16.3783 8.34919 16.0358C5.38097 15.3104 3.70116 13.3952 3.70116 9.63971C3.70116 8.40085 4.0704 7.28393 4.75917 6.3478C4.5415 5.45392 4.57433 4.37284 5.06092 3.15636C5.1725 2.87739 5.40361 2.66338 5.69031 2.57352C5.77242 2.54973 5.81791 2.53915 5.89878 2.52673C6.70167 2.40343 7.83573 2.69705 9.31449 3.62336C10.181 3.41879 11.0885 3.315 12.0012 3.315C12.9129 3.315 13.8196 3.4186 14.6854 3.62277C16.1619 2.69 17.2986 2.39649 18.1072 2.52651C18.1919 2.54013 18.2645 2.55783 18.3249 2.57766C18.6059 2.66991 18.8316 2.88179 18.9414 3.15636C19.4279 4.37256 19.4608 5.45344 19.2433 6.3472C19.9342 7.28337 20.3012 8.39208 20.3012 9.63971C20.3012 13.3968 18.627 15.3048 15.6588 16.032C15.7837 16.447 15.8496 16.9105 15.8496 17.4121C15.8496 18.0765 15.8471 18.711 15.8424 19.4225C15.8412 19.6127 15.8397 19.8159 15.8375 20.1281C16.2129 20.2109 16.5229 20.5077 16.6031 20.9089C16.7114 21.4504 16.3602 21.9773 15.8186 22.0856C14.6794 22.3134 13.8353 21.5538 13.8353 20.5611C13.8353 20.4708 13.836 20.3417 13.8375 20.1145C13.8398 19.8015 13.8412 19.599 13.8425 19.4094C13.8471 18.7019 13.8496 18.0716 13.8496 17.4121C13.8496 16.7148 13.6664 16.2602 13.4237 16.051C12.7627 15.4812 13.0977 14.3973 13.965 14.2999C16.9314 13.9666 18.3012 12.8177 18.3012 9.63971C18.3012 8.68508 17.9893 7.89571 17.3881 7.23559C17.1301 6.95233 17.0567 6.54659 17.199 6.19087C17.3647 5.77663 17.4354 5.23384 17.2941 4.57702L17.2847 4.57968C16.7928 4.71886 16.1744 5.0198 15.4261 5.5285C15.182 5.69438 14.8772 5.74401 14.5932 5.66413C13.7729 5.43343 12.8913 5.315 12.0012 5.315C11.111 5.315 10.2294 5.43343 9.40916 5.66413C9.12662 5.74359 8.82344 5.69492 8.57997 5.53101C7.8274 5.02439 7.2056 4.72379 6.71079 4.58376C6.56735 5.23696 6.63814 5.77782 6.80336 6.19087C6.94565 6.54659 6.87219 6.95233 6.61423 7.23559C6.01715 7.8912 5.70116 8.69376 5.70116 9.63971C5.70116 12.8116 7.07225 13.9683 10.023 14.2999C10.8883 14.3971 11.2246 15.4769 10.5675 16.0482C10.3751 16.2156 10.1384 16.7802 10.1384 17.4121V20.5611C10.1384 21.5474 9.30356 22.2869 8.17878 22.09C7.63476 21.9948 7.27093 21.4766 7.36613 20.9326C7.43827 20.5204 7.75331 20.2116 8.13841 20.1276V19.1381C7.22829 19.1994 6.47656 19.0498 5.88401 18.6533Z"/></symbol>
+<symbol id="i-global" viewBox="0 0 24 24"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM9.71002 19.6674C8.74743 17.6259 8.15732 15.3742 8.02731 13H4.06189C4.458 16.1765 6.71639 18.7747 9.71002 19.6674ZM10.0307 13C10.1811 15.4388 10.8778 17.7297 12 19.752C13.1222 17.7297 13.8189 15.4388 13.9693 13H10.0307ZM19.9381 13H15.9727C15.8427 15.3742 15.2526 17.6259 14.29 19.6674C17.2836 18.7747 19.542 16.1765 19.9381 13ZM4.06189 11H8.02731C8.15732 8.62577 8.74743 6.37407 9.71002 4.33256C6.71639 5.22533 4.458 7.8235 4.06189 11ZM10.0307 11H13.9693C13.8189 8.56122 13.1222 6.27025 12 4.24799C10.8778 6.27025 10.1811 8.56122 10.0307 11ZM14.29 4.33256C15.2526 6.37407 15.8427 8.62577 15.9727 11H19.9381C19.542 7.8235 17.2836 5.22533 14.29 4.33256Z"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M9.9997 15.1709L19.1921 5.97852L20.6063 7.39273L9.9997 17.9993L3.63574 11.6354L5.04996 10.2212L9.9997 15.1709Z"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M5.46257 4.43262C7.21556 2.91688 9.5007 2 12 2C17.5228 2 22 6.47715 22 12C22 14.1361 21.3302 16.1158 20.1892 17.7406L17 12H20C20 7.58172 16.4183 4 12 4C9.84982 4 7.89777 4.84827 6.46023 6.22842L5.46257 4.43262ZM18.5374 19.5674C16.7844 21.0831 14.4993 22 12 22C6.47715 22 2 17.5228 2 12C2 9.86386 2.66979 7.88416 3.8108 6.25944L7 12H4C4 16.4183 7.58172 20 12 20C14.1502 20 16.1022 19.1517 17.5398 17.7716L18.5374 19.5674Z"/></symbol>
+<symbol id="i-arrowr" viewBox="0 0 24 24"><path d="M13.1717 12.0007L8.22192 7.05093L9.63614 5.63672L16.0001 12.0007L9.63614 18.3646L8.22192 16.9504L13.1717 12.0007Z"/></symbol>
+<symbol id="i-arrowdown" viewBox="0 0 24 24"><path d="M13.0001 16.1716L18.3641 10.8076L19.7783 12.2218L12.0001 20L4.22192 12.2218L5.63614 10.8076L11.0001 16.1716V4H13.0001V16.1716Z"/></symbol>
+</svg>
+
 <div class="nav-shell">
   <header class="site-header">
     <a class="wordmark" href="/">
-      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="3" y="3" width="26" height="26" rx="7" stroke="currentColor" stroke-width="2.4"/>
-        <path d="M10 20.5h12M10 15.5h12M10 10.5h7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-      </svg>
+      <svg class="ic"><use href="#i-stack"/></svg>
       Asana Vault
     </a>
-    <nav>
-      <a href="#how">工作方式</a>
-      <a href="#privacy">隐私承诺</a>
-    </nav>
+    <div></div>
     <div class="nav-actions">
-      <a class="ghost-pill" href="/classic">旧版页面</a>
+      <a class="nav-links" href="#how" data-i18n="nav_how">How it works</a>
+      <a class="nav-links" href="#privacy" data-i18n="nav_privacy">Privacy</a>
+      <a class="gh-link" href="https://github.com/panfu/asana_backup" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub">
+        <svg class="ic"><use href="#i-github"/></svg>
+      </a>
+      <details class="language-picker" id="language-picker">
+        <summary aria-label="Language">
+          <svg class="ic"><use href="#i-global"/></svg><span id="lang-name">English</span>
+        </summary>
+        <div class="language-options">
+          <button type="button" data-lang="en">English</button>
+          <button type="button" data-lang="zh">中文</button>
+        </div>
+      </details>
     </div>
   </header>
 </div>
@@ -267,21 +304,18 @@ footer { border-top: 1px solid var(--line); padding: 24px 0 30px; margin-top: 56
 <main>
   <section class="hero">
     <p class="eyebrow">
-      <span class="tiny-dot"></span>一次性迁移<span class="tiny-dot"></span>读取一次 · 生成一次 · 下载后删除<span class="tiny-dot"></span>
+      <span class="tiny-dot"></span><span data-i18n="eyebrow_a">One-time migration</span><span class="tiny-dot"></span><span data-i18n="eyebrow_b">Read once · Generate once · Delete after download</span><span class="tiny-dot"></span>
     </p>
     <h1>Asana → Obsidian Vault</h1>
-    <p class="lead">
-      把你的 Asana 项目导出为 Obsidian Vault（Markdown + 附件）。
-      无需安装软件，迁移完下载 ZIP 即可。<strong>ZIP 下载后 3 小时内自动销毁。</strong>
-    </p>
+    <p class="lead" data-i18n-html="lead"></p>
   </section>
 
   <section class="wizard">
     <ol class="steps">
-      <li data-step="1"><span class="step-no">1</span><span class="lbl">连接 Asana</span></li>
-      <li data-step="2"><span class="step-no">2</span><span class="lbl">选择项目</span></li>
-      <li data-step="3"><span class="step-no">3</span><span class="lbl">导出内容</span></li>
-      <li data-step="4"><span class="step-no">4</span><span class="lbl">下载 Vault</span></li>
+      <li data-step="1"><span class="step-no">1</span><span class="lbl" data-i18n="step1">Connect Asana</span></li>
+      <li data-step="2"><span class="step-no">2</span><span class="lbl" data-i18n="step2">Select projects</span></li>
+      <li data-step="3"><span class="step-no">3</span><span class="lbl" data-i18n="step3">Choose content</span></li>
+      <li data-step="4"><span class="step-no">4</span><span class="lbl" data-i18n="step4">Download Vault</span></li>
     </ol>
 
     <div id="error-box" class="alert err hidden"></div>
@@ -290,23 +324,24 @@ footer { border-top: 1px solid var(--line); padding: 24px 0 30px; margin-top: 56
     <section id="step-connect" class="panel hidden">
       <div class="connect-box">
         <div id="connect-idle">
-          <p class="panel-hint">
-            点击按钮跳转到 Asana 官方页面完成授权。我们只申请<strong>读取所需权限</strong>，
-            授权仅用于本次导出，任务结束后自动撤销。
-          </p>
-          <button class="primary-button" onclick="location.href='/api/connect'">连接 Asana&nbsp;&nbsp;→</button>
+          <p class="panel-hint" data-i18n="s1_hint"></p>
+          <button class="primary-button" onclick="location.href='/api/connect'">
+            <span data-i18n="s1_btn">Connect Asana</span><svg class="ic"><use href="#i-arrowr"/></svg>
+          </button>
         </div>
         <div id="connect-done" class="hidden">
           <div class="identity">
             <div class="avatar" id="me-avatar">?</div>
             <div style="text-align:left">
-              <div><strong id="me-name"></strong><span id="dev-badge" class="dev-badge hidden">开发模式</span></div>
+              <div><strong id="me-name"></strong><span id="dev-badge" class="dev-badge hidden" data-i18n="dev_badge">Dev mode</span></div>
               <div style="color:var(--muted);font-size:12.5px;" id="me-email"></div>
             </div>
           </div>
-          <button class="primary-button" id="btn-to-select" onclick="showStep(2)">下一步：选择项目&nbsp;&nbsp;→</button>
+          <button class="primary-button" id="btn-to-select" onclick="showStep(2)">
+            <span data-i18n="s1_next">Next: select projects</span><svg class="ic"><use href="#i-arrowr"/></svg>
+          </button>
           <div style="margin-top:6px;">
-            <button class="text-button" onclick="disconnect()">断开连接</button>
+            <button class="text-button" onclick="disconnect()" data-i18n="s1_disconnect">Disconnect</button>
           </div>
         </div>
       </div>
@@ -314,78 +349,80 @@ footer { border-top: 1px solid var(--line); padding: 24px 0 30px; margin-top: 56
 
     <!-- 步骤 2：Workspace + 项目 -->
     <section id="step-select" class="panel hidden">
-      <h2>选择 Workspace 与项目</h2>
-      <p class="panel-hint">只导出你勾选的项目；可以多选。</p>
+      <h2 data-i18n="s2_title">Choose workspace &amp; projects</h2>
+      <p class="panel-hint" data-i18n="s2_hint"></p>
       <select id="workspace-select" onchange="loadProjects()" aria-label="Workspace"></select>
-      <div id="projects-loading" class="loading-line hidden"><span class="spinner"></span>正在加载项目列表…</div>
+      <div id="projects-loading" class="loading-line hidden"><span class="spinner"></span><span data-i18n="s2_loading_projects">Loading projects…</span></div>
       <div id="projects-box" class="hidden">
         <div class="list-head">
-          <span>已选 <strong id="proj-count">0</strong> 个项目</span>
-          <button class="text-button" onclick="toggleAllProjects(this)">全选</button>
+          <span id="proj-count-label"></span>
+          <button class="text-button" id="btn-select-all" onclick="toggleAllProjects(this)"></button>
         </div>
         <div class="list" id="project-list"></div>
         <div style="margin-top:18px;">
-          <button class="primary-button" id="btn-to-options" onclick="showStep(3)" disabled>下一步：导出内容&nbsp;&nbsp;→</button>
+          <button class="primary-button" id="btn-to-options" onclick="showStep(3)" disabled>
+            <span data-i18n="s2_next">Next: choose content</span><svg class="ic"><use href="#i-arrowr"/></svg>
+          </button>
         </div>
       </div>
     </section>
 
     <!-- 步骤 3：选项 -->
     <section id="step-options" class="panel hidden">
-      <h2>导出内容</h2>
-      <p class="panel-hint">按需勾选，导出越多耗时越长（受 Asana 接口限速约 2 请求/秒）。</p>
+      <h2 data-i18n="s3_title">What to include</h2>
+      <p class="panel-hint" data-i18n="s3_hint"></p>
 
       <label class="opt"><input type="checkbox" id="opt-completed" checked>
-        <div><div class="t">包含已完成任务</div>
-        <div class="d">关闭后只导出未完成任务</div></div></label>
+        <div><div class="t" data-i18n="opt1_t">Include completed tasks</div>
+        <div class="d" data-i18n="opt1_d">Turn off to export open tasks only</div></div></label>
 
       <label class="opt"><input type="checkbox" id="opt-comments" checked>
-        <div><div class="t">包含评论</div>
-        <div class="d">任务下的讨论记录（含作者与时间）</div></div></label>
+        <div><div class="t" data-i18n="opt2_t">Include comments</div>
+        <div class="d" data-i18n="opt2_d">Discussion history with author and time</div></div></label>
 
       <label class="opt"><input type="checkbox" id="opt-subtasks" checked>
-        <div><div class="t">包含子任务</div>
-        <div class="d">以嵌套清单写入父任务笔记</div></div></label>
+        <div><div class="t" data-i18n="opt3_t">Include subtasks</div>
+        <div class="d" data-i18n="opt3_d">Nested checklists inside each task note</div></div></label>
 
       <label class="opt"><input type="checkbox" id="opt-attachments" checked>
-        <div><div class="t">包含附件</div>
-        <div class="d">托管在 Asana 的文件会下载进 ZIP；Google Drive / Figma 等外链保留原链接</div></div></label>
+        <div><div class="t" data-i18n="opt4_t">Include attachments</div>
+        <div class="d" data-i18n="opt4_d"></div></label>
 
-      <button class="primary-button" style="width:100%;margin-top:8px;" id="btn-start" onclick="startExport()">
-        开始生成 Obsidian-Vault.zip
+      <button class="primary-button" style="width:100%;margin-top:8px;" id="btn-start" onclick="startExport()" data-i18n="s3_btn">
+        Generate Obsidian-Vault.zip
       </button>
     </section>
 
     <!-- 步骤 4：进度 + 下载 -->
     <section id="step-run" class="panel hidden">
-      <h2 id="run-title">正在生成 Vault…</h2>
-      <p class="panel-hint" id="run-sub">拉取任务、评论与附件并转换为 Markdown，请保持页面打开。</p>
+      <h2 id="run-title"></h2>
+      <p class="panel-hint" id="run-sub"></p>
       <div class="progress-num" id="run-percent">0%</div>
       <div class="progress-outer"><div class="progress-inner" id="run-bar"></div></div>
-      <div class="progress-label" id="run-label">准备中…</div>
+      <div class="progress-label" id="run-label"></div>
 
       <div id="run-done" class="hidden">
         <a id="download-link" class="download-btn" href="#">
-          <span class="download-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M4.5 19.5h15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
+          <span class="download-icon" aria-hidden="true"><svg class="ic"><use href="#i-download"/></svg></span>
           <span class="download-copy">
-            <span class="download-label">一次性下载 · 过期自动销毁</span>
+            <span class="download-label" data-i18n="dl_label">One-time download · auto-destroyed</span>
             <strong>Obsidian-Vault.zip</strong>
           </span>
         </a>
         <div class="countdown" id="countdown"></div>
         <div style="display:flex;justify-content:center;margin-top:10px;">
-          <button class="text-button" onclick="resetFlow()">↻ 再迁移一次（重新授权）</button>
+          <button class="text-button" onclick="resetFlow()">
+            <svg class="ic"><use href="#i-refresh"/></svg><span data-i18n="again">Start another migration (re-authorize)</span>
+          </button>
         </div>
       </div>
 
       <div id="run-failed" class="hidden">
         <div class="alert err" id="run-error"></div>
         <div style="display:flex;justify-content:center;">
-          <button class="text-button" onclick="resetFlow()">↻ 重新开始</button>
+          <button class="text-button" onclick="resetFlow()">
+            <svg class="ic"><use href="#i-refresh"/></svg><span data-i18n="retry">Start over</span>
+          </button>
         </div>
       </div>
     </section>
@@ -394,41 +431,235 @@ footer { border-top: 1px solid var(--line); padding: 24px 0 30px; margin-top: 56
   <!-- 工作方式 -->
   <section id="how">
     <div class="pipeline">
-      <div class="pipe-node"><div class="ic">🔐</div><div class="t">OAuth 授权</div><div class="d">只读权限</div></div>
-      <div class="pipe-node"><div class="ic">📥</div><div class="t">拉取数据</div><div class="d">任务 · 评论 · 附件</div></div>
-      <div class="pipe-node"><div class="ic">📝</div><div class="t">生成 Markdown</div><div class="d">标准 Vault 结构</div></div>
-      <div class="pipe-node"><div class="ic">🗜️</div><div class="t">打包 ZIP</div><div class="d">含附件引用</div></div>
-      <div class="pipe-node"><div class="ic">🧹</div><div class="t">自动清理</div><div class="d">3 小时销毁</div></div>
+      <div class="pipe-node"><svg class="ic"><use href="#i-shield"/></svg><div class="t" data-i18n="pipe1_t">Authorize</div><div class="d" data-i18n="pipe1_d">Read-only</div></div>
+      <div class="pipe-node"><svg class="ic"><use href="#i-download"/></svg><div class="t" data-i18n="pipe2_t">Fetch</div><div class="d" data-i18n="pipe2_d">Tasks · comments · files</div></div>
+      <div class="pipe-node"><svg class="ic"><use href="#i-filetext"/></svg><div class="t" data-i18n="pipe3_t">Markdown</div><div class="d" data-i18n="pipe3_d">Standard vault structure</div></div>
+      <div class="pipe-node"><svg class="ic"><use href="#i-filezip"/></svg><div class="t" data-i18n="pipe4_t">ZIP</div><div class="d" data-i18n="pipe4_d">With attachments</div></div>
+      <div class="pipe-node"><svg class="ic"><use href="#i-bin"/></svg><div class="t" data-i18n="pipe5_t">Cleanup</div><div class="d" data-i18n="pipe5_d">Destroyed in 3h</div></div>
     </div>
   </section>
 
   <!-- 隐私承诺 -->
   <section id="privacy" class="compatibility">
-    <h2>Privacy Promise · 隐私承诺</h2>
-    <p class="sub">无账户体系、不做同步、不保存历史版本。</p>
-    <ul>
-      <li><span class="ic">✓</span><span>只申请<strong>读取所需权限</strong>（tasks / projects / attachments 只读），不写入、不改动你的 Asana 数据。</span></li>
-      <li><span class="ic">✓</span><span><strong>不保留</strong>项目内容、评论与附件 —— 源数据在任务完成时立即删除。</span></li>
-      <li><span class="ic">✓</span><span>ZIP 下载后，临时文件在 <strong>3 小时</strong>内自动销毁。</span></li>
-      <li><span class="ic">✓</span><span>OAuth 授权仅在本任务期间持有，任务结束即撤销；你也可随时在 <a href="https://app.asana.com/0/my-apps" target="_blank" rel="noopener">Asana 授权应用页</a>自行撤销。</span></li>
-      <li><span class="ic">✓</span><span>外链附件（Google Drive、Figma 等）默认<strong>保留原链接</strong>；只有真正托管在 Asana 的附件才下载进 ZIP。</span></li>
-    </ul>
+    <h2 data-i18n="priv_title">Privacy Promise</h2>
+    <p class="sub" data-i18n="priv_sub"></p>
+    <ul id="privacy-list"></ul>
   </section>
 </main>
 
 <footer>
   <div class="footer-row">
-    <span>Asana → Obsidian Vault · 一次性迁移服务</span>
+    <span data-i18n="footer">Asana → Obsidian Vault · one-time migration service</span>
     <div class="footer-links">
-      <a href="#privacy">隐私承诺</a>
-      <a href="/classic">旧版页面</a>
+      <a href="#privacy" data-i18n="nav_privacy">Privacy</a>
+      <a href="https://github.com/panfu/asana_backup" target="_blank" rel="noopener">GitHub</a>
     </div>
   </div>
 </footer>
 
 <script>
+/* ================= i18n ================= */
+const I18N = {
+  en: {
+    title: 'Asana → Obsidian Vault · one-time migration',
+    meta_desc: 'Move your Asana projects into an Obsidian Vault. Read once, generate once, delete after download.',
+    nav_how: 'How it works', nav_privacy: 'Privacy',
+    eyebrow_a: 'One-time migration', eyebrow_b: 'Read once · Generate once · Delete after download',
+    lead: 'Move your Asana projects into an Obsidian Vault (Markdown + attachments). No software to install — download the ZIP when it is ready. <strong>The ZIP is auto-destroyed 3 hours after generation.</strong>',
+    step1: 'Connect Asana', step2: 'Select projects', step3: 'Choose content', step4: 'Download Vault',
+    s1_hint: 'Click the button to authorize on Asana\u2019s official page. We request read-only scopes only; the grant is used for this export alone and is revoked automatically when the task finishes.',
+    s1_btn: 'Connect Asana', s1_next: 'Next: select projects', s1_disconnect: 'Disconnect',
+    dev_badge: 'Dev mode',
+    s2_title: 'Choose workspace & projects', s2_hint: 'Only the projects you check will be exported; multiple selection is allowed.',
+    s2_loading: 'Loading…', s2_loading_projects: 'Loading projects…',
+    s2_selected: '{n} selected', s2_select_all: 'Select all', s2_select_none: 'Deselect all',
+    s2_next: 'Next: choose content',
+    s3_title: 'What to include',
+    s3_hint: 'Check what you need — more content takes longer (the Asana API is rate-limited to ~2 requests/sec).',
+    opt1_t: 'Include completed tasks', opt1_d: 'Turn off to export open tasks only',
+    opt2_t: 'Include comments', opt2_d: 'Discussion history with author and time',
+    opt3_t: 'Include subtasks', opt3_d: 'Nested checklists inside each task note',
+    opt4_t: 'Include attachments',
+    opt4_d: 'Files hosted on Asana are downloaded into the ZIP; external links (Google Drive, Figma…) keep their original URLs',
+    s3_btn: 'Generate Obsidian-Vault.zip', s3_creating: 'Creating task…',
+    s4_title_run: 'Generating Vault…',
+    s4_sub_run: 'Fetching tasks, comments & attachments and converting to Markdown — keep this page open.',
+    s4_preparing: 'Preparing…',
+    s4_proj_progress: '“{name}” {done}/{total} tasks · {done2}/{total2} tasks total',
+    s4_title_done: 'Vault ready',
+    s4_sub_done: 'Download and unzip it into your Obsidian Vault folder.',
+    dl_label: 'One-time download · auto-destroyed',
+    countdown: 'Auto-destroyed in {h}h {m}m {s}s — download soon',
+    countdown_expired: 'This link has expired and the ZIP has been destroyed.',
+    again: 'Start another migration (re-authorize)',
+    s4_title_failed: 'Export failed', retry: 'Start over',
+    failed_default: 'Something went wrong during export. Please try again.',
+    stats: '{notes} notes · {attachments} attachments · {size}',
+    pipe1_t: 'Authorize', pipe1_d: 'Read-only',
+    pipe2_t: 'Fetch', pipe2_d: 'Tasks · comments · files',
+    pipe3_t: 'Markdown', pipe3_d: 'Standard vault structure',
+    pipe4_t: 'ZIP', pipe4_d: 'With attachments',
+    pipe5_t: 'Cleanup', pipe5_d: 'Destroyed in 3h',
+    priv_title: 'Privacy Promise', priv_sub: 'No accounts, no sync, no version history.',
+    priv_items: [
+      'We request <strong>read-only scopes</strong> (tasks / projects / attachments). Your Asana data is never written or modified.',
+      'Project content, comments and attachments are <strong>never retained</strong> — source data is deleted the moment the task finishes.',
+      'The ZIP and its temporary files are <strong>auto-destroyed within 3 hours</strong>.',
+      'The OAuth grant is held only for this task and revoked when it ends; you can also revoke it anytime on the <a href="https://app.asana.com/0/my-apps" target="_blank" rel="noopener">Asana authorized apps page</a>.',
+      'External attachments (Google Drive, Figma…) keep their <strong>original links</strong>; only files actually hosted on Asana are downloaded into the ZIP.',
+    ],
+    footer: 'Asana → Obsidian Vault · one-time migration service',
+    confirm_disconnect: 'Disconnect Asana and revoke the grant?',
+    err_pick_one: 'Select at least one project.',
+    err_cannot_connect: 'Cannot reach the service: ',
+    err_not_configured: 'Asana OAuth is not configured on the server yet — connection is unavailable.',
+    err_url: {
+      session_lost: 'Session lost — click “Connect Asana” again.',
+      cancelled: 'Asana authorization was cancelled.',
+      state_mismatch: 'Authorization state check failed — please retry.',
+      no_code: 'No authorization code received — please retry.',
+      exchange_failed: 'Token exchange failed — please retry.',
+    },
+    err_server: {
+      '请先连接': 'Please connect Asana first.',
+      '重新连接': 'The grant was already used for an export and revoked — reconnect Asana.',
+      '至少选择一个项目': 'Select at least one project.',
+      '过期': 'This download link has expired (the ZIP was auto-destroyed).',
+      'Asana API': 'Asana API error',
+    },
+  },
+  zh: {
+    title: 'Asana → Obsidian Vault · 一次性迁移',
+    meta_desc: '把 Asana 项目一次性导出为 Obsidian Vault。读取一次、生成一次、下载后删除。',
+    nav_how: '工作方式', nav_privacy: '隐私承诺',
+    eyebrow_a: '一次性迁移', eyebrow_b: '读取一次 · 生成一次 · 下载后删除',
+    lead: '把你的 Asana 项目导出为 Obsidian Vault（Markdown + 附件）。无需安装软件，迁移完下载 ZIP 即可。<strong>ZIP 生成后 3 小时内自动销毁。</strong>',
+    step1: '连接 Asana', step2: '选择项目', step3: '导出内容', step4: '下载 Vault',
+    s1_hint: '点击按钮跳转到 Asana 官方页面完成授权。我们只申请读取所需权限，授权仅用于本次导出，任务结束后自动撤销。',
+    s1_btn: '连接 Asana', s1_next: '下一步：选择项目', s1_disconnect: '断开连接',
+    dev_badge: '开发模式',
+    s2_title: '选择 Workspace 与项目', s2_hint: '只导出你勾选的项目；可以多选。',
+    s2_loading: '加载中…', s2_loading_projects: '正在加载项目列表…',
+    s2_selected: '已选 {n} 个项目', s2_select_all: '全选', s2_select_none: '全不选',
+    s2_next: '下一步：导出内容',
+    s3_title: '导出内容',
+    s3_hint: '按需勾选，导出越多耗时越长（受 Asana 接口限速约 2 请求/秒）。',
+    opt1_t: '包含已完成任务', opt1_d: '关闭后只导出未完成任务',
+    opt2_t: '包含评论', opt2_d: '任务下的讨论记录（含作者与时间）',
+    opt3_t: '包含子任务', opt3_d: '以嵌套清单写入父任务笔记',
+    opt4_t: '包含附件',
+    opt4_d: '托管在 Asana 的文件会下载进 ZIP；Google Drive / Figma 等外链保留原链接',
+    s3_btn: '开始生成 Obsidian-Vault.zip', s3_creating: '正在创建任务…',
+    s4_title_run: '正在生成 Vault…',
+    s4_sub_run: '拉取任务、评论与附件并转换为 Markdown，请保持页面打开。',
+    s4_preparing: '准备中…',
+    s4_proj_progress: '「{name}」 {done}/{total} 个任务 · 共 {done2}/{total2} 个任务',
+    s4_title_done: 'Vault 已生成',
+    s4_sub_done: '下载后解压到你的 Obsidian Vault 目录即可。',
+    dl_label: '一次性下载 · 过期自动销毁',
+    countdown: '文件将于 {h} 小时 {m} 分 {s} 秒后自动销毁，请尽快下载',
+    countdown_expired: '⏳ 链接已过期，ZIP 已自动销毁。',
+    again: '再迁移一次（重新授权）',
+    s4_title_failed: '导出失败', retry: '重新开始',
+    failed_default: '导出过程中发生错误，请重试。',
+    stats: '{notes} 篇笔记 · {attachments} 个附件 · {size}',
+    pipe1_t: '授权', pipe1_d: '只读权限',
+    pipe2_t: '拉取', pipe2_d: '任务 · 评论 · 附件',
+    pipe3_t: 'Markdown', pipe3_d: '标准 Vault 结构',
+    pipe4_t: 'ZIP', pipe4_d: '含附件引用',
+    pipe5_t: '清理', pipe5_d: '3 小时销毁',
+    priv_title: '隐私承诺', priv_sub: '无账户体系、不做同步、不保存历史版本。',
+    priv_items: [
+      '只申请<strong>读取所需权限</strong>（tasks / projects / attachments 只读），不写入、不改动你的 Asana 数据。',
+      '<strong>不保留</strong>项目内容、评论与附件 —— 源数据在任务完成时立即删除。',
+      'ZIP 临时文件在 <strong>3 小时</strong>内自动销毁。',
+      'OAuth 授权仅在本任务期间持有，任务结束即撤销；你也可随时在 <a href="https://app.asana.com/0/my-apps" target="_blank" rel="noopener">Asana 授权应用页</a>自行撤销。',
+      '外链附件（Google Drive、Figma 等）默认<strong>保留原链接</strong>；只有真正托管在 Asana 的附件才下载进 ZIP。',
+    ],
+    footer: 'Asana → Obsidian Vault · 一次性迁移服务',
+    confirm_disconnect: '断开 Asana 连接并撤销授权？',
+    err_pick_one: '请至少选择一个项目。',
+    err_cannot_connect: '无法连接服务：',
+    err_not_configured: '服务端尚未配置 Asana OAuth，暂时无法连接。',
+    err_url: {
+      session_lost: '会话丢失，请重新点击「连接 Asana」。',
+      cancelled: '你取消了 Asana 授权。',
+      state_mismatch: '授权校验失败（state 不匹配），请重试。',
+      no_code: '未收到授权码，请重试。',
+      exchange_failed: '授权码换取失败，请重试。',
+    },
+    err_server: {},
+  },
+};
+
+let lang = localStorage.getItem('ab_lang')
+  || ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+
+function t(key, vars) {
+  let s = (I18N[lang] && I18N[lang][key]) ?? I18N.en[key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
+  return s;
+}
+
+function translateServerError(msg) {
+  const map = I18N[lang].err_server || {};
+  for (const [needle, translation] of Object.entries(map)) {
+    if (msg && msg.includes(needle)) return translation;
+  }
+  return msg;
+}
+
+function applyLang() {
+  localStorage.setItem('ab_lang', lang);
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.title = t('title');
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta) meta.setAttribute('content', t('meta_desc'));
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  // 隐私清单（数组键）
+  const list = document.getElementById('privacy-list');
+  list.innerHTML = I18N[lang].priv_items.map(item => `<li><svg class="ic"><use href="#i-check"/></svg><span>${item}</span></li>`).join('');
+  // 语言选择器状态
+  document.getElementById('lang-name').textContent = lang === 'zh' ? '中文' : 'English';
+  document.querySelectorAll('.language-options button').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.lang === lang));
+  });
+  renderProjCount();
+  rerenderDynamic();
+}
+
+function rerenderDynamic() {
+  // 重新渲染当前动态区域（进度/完成/失败态）
+  if (state.lastJob) {
+    if (state.lastJob.status === 'completed') renderDone(state.lastJob);
+    else if (state.lastJob.status === 'failed') renderFailed(state.lastJob);
+    else updateRun(state.lastJob);
+  }
+  const sb = document.getElementById('btn-start');
+  if (sb && !sb.disabled) sb.textContent = t('s3_btn');
+  if (state.allOn !== undefined) {
+    const btn = document.getElementById('btn-select-all');
+    if (btn) btn.textContent = state.allOn ? t('s2_select_none') : t('s2_select_all');
+  }
+}
+
+document.querySelectorAll('.language-options button').forEach(b => {
+  b.addEventListener('click', () => {
+    lang = b.dataset.lang;
+    document.getElementById('language-picker').removeAttribute('open');
+    applyLang();
+  });
+});
+// 点击外部关闭语言下拉
+document.addEventListener('click', (e) => {
+  const picker = document.getElementById('language-picker');
+  if (picker.open && !picker.contains(e.target)) picker.removeAttribute('open');
+});
+
+/* ================= 业务逻辑（与功能一致） ================= */
 const $ = (id) => document.getElementById(id);
-let state = { session: null, projects: [], pollTimer: null, expiresAt: null, cdTimer: null };
+let state = { session: null, projects: [], pollTimer: null, expiresAt: null, cdTimer: null, lastJob: null, allOn: undefined };
 
 function showError(msg) {
   const box = $('error-box');
@@ -459,25 +690,19 @@ async function api(path, opts) {
 }
 
 async function init() {
+  applyLang();
   try {
     state.session = await api('/api/session');
-  } catch (e) { showError('无法连接服务：' + e.message); return; }
+  } catch (e) { showError(t('err_cannot_connect') + e.message); return; }
   const params = new URLSearchParams(location.search);
   if (params.get('error')) {
-    const msgs = {
-      session_lost: '会话丢失，请重新点击「连接 Asana」。',
-      cancelled: '你取消了 Asana 授权。',
-      state_mismatch: '授权校验失败（state 不匹配），请重试。',
-      no_code: '未收到授权码，请重试。',
-      exchange_failed: '授权码换取失败，请重试。',
-    };
-    showError(msgs[params.get('error')] || '授权失败：' + params.get('error'));
+    showError(I18N[lang].err_url[params.get('error')] || I18N.en.err_url[params.get('error')] || params.get('error'));
     history.replaceState(null, '', '/');
   }
 
   const s = state.session;
   if (!s.configured) {
-    showError('服务端尚未配置 Asana OAuth（ASANA_CLIENT_ID / ASANA_CLIENT_SECRET / ASANA_REDIRECT_URI），暂时无法连接。');
+    showError(t('err_not_configured'));
     showStep(1);
     $('connect-idle').classList.add('hidden');
     return;
@@ -505,7 +730,7 @@ function renderConnect() {
   $('connect-idle').classList.toggle('hidden', connected);
   $('connect-done').classList.toggle('hidden', !connected);
   if (connected) {
-    const name = s.identity?.name || 'Asana 用户';
+    const name = s.identity?.name || 'Asana';
     $('me-name').textContent = name;
     $('me-email').textContent = s.identity?.email || '';
     $('me-avatar').textContent = (name[0] || '?').toUpperCase();
@@ -514,14 +739,14 @@ function renderConnect() {
 }
 
 async function disconnect() {
-  if (!confirm('断开 Asana 连接并撤销授权？')) return;
+  if (!confirm(t('confirm_disconnect'))) return;
   try { await api('/api/disconnect', { method: 'POST' }); } catch (e) { /* 忽略 */ }
   location.href = '/';
 }
 
 async function loadWorkspaces() {
   const sel = $('workspace-select');
-  sel.innerHTML = '<option>加载中…</option>';
+  sel.innerHTML = `<option>${t('s2_loading')}</option>`;
   try {
     const data = await api('/api/workspaces');
     sel.innerHTML = '';
@@ -532,8 +757,8 @@ async function loadWorkspaces() {
     }
     await loadProjects();
   } catch (e) {
-    showError(e.message);
-    if (String(e.message).includes('重新连接')) renderConnect(), showStep(1);
+    showError(translateServerError(e.message));
+    if (String(e.message).includes('重新连接') || String(e.message).includes('reconnect')) renderConnect(), showStep(1);
   }
 }
 
@@ -560,31 +785,37 @@ async function loadProjects() {
     updateProjCount();
   } catch (e) {
     $('projects-loading').classList.add('hidden');
-    showError(e.message);
+    showError(translateServerError(e.message));
   }
 }
 
 function toggleAllProjects(btn) {
   const boxes = [...document.querySelectorAll('#project-list input')];
-  const allOn = boxes.every(b => b.checked);
-  boxes.forEach(b => b.checked = !allOn);
-  btn.textContent = allOn ? '全选' : '全不选';
+  state.allOn = boxes.every(b => b.checked);
+  boxes.forEach(b => b.checked = !state.allOn);
+  btn.textContent = state.allOn ? t('s2_select_all') : t('s2_select_none');
   updateProjCount();
 }
 
-function updateProjCount() {
+function renderProjCount() {
+  const label = $('proj-count-label');
+  const btn = $('btn-select-all');
+  if (!label || !btn) return;
   const n = document.querySelectorAll('#project-list input:checked').length;
-  $('proj-count').textContent = n;
+  label.innerHTML = t('s2_selected', { n: `<strong>${n}</strong>` });
+  btn.textContent = state.allOn ? t('s2_select_none') : t('s2_select_all');
   $('btn-to-options').disabled = n === 0;
 }
+
+function updateProjCount() { renderProjCount(); }
 
 async function startExport() {
   const selected = [...document.querySelectorAll('#project-list input:checked')].map(b => ({
     gid: b.value, name: b.dataset.name,
   }));
-  if (!selected.length) { showError('请至少选择一个项目'); return; }
+  if (!selected.length) { showError(t('err_pick_one')); return; }
   $('btn-start').disabled = true;
-  $('btn-start').textContent = '正在创建任务…';
+  $('btn-start').textContent = t('s3_creating');
   try {
     const data = await api('/api/export', {
       method: 'POST',
@@ -602,10 +833,10 @@ async function startExport() {
     showStep(4);
     pollJob(data.job.id);
   } catch (e) {
-    showError(e.message);
+    showError(translateServerError(e.message));
     $('btn-start').disabled = false;
-    $('btn-start').textContent = '开始生成 Obsidian-Vault.zip';
-    if (String(e.message).includes('重新连接')) { await refreshSession(); renderConnect(); showStep(1); }
+    $('btn-start').textContent = t('s3_btn');
+    if (String(e.message).includes('重新连接') || String(e.message).includes('reconnect')) { await refreshSession(); renderConnect(); showStep(1); }
   }
 }
 
@@ -620,6 +851,7 @@ function pollJob(jobId) {
     let job;
     try { job = await api('/api/export/' + jobId); }
     catch (e) { return; /* 短暂网络错误继续轮询 */ }
+    state.lastJob = job;
     if (job.status === 'completed') { clearInterval(state.pollTimer); renderDone(job); }
     else if (job.status === 'failed') { clearInterval(state.pollTimer); renderFailed(job); }
     else updateRun(job);
@@ -627,20 +859,27 @@ function pollJob(jobId) {
 }
 
 function updateRun(job) {
-  $('run-title').textContent = '正在生成 Vault…';
-  $('run-sub').textContent = '拉取任务、评论与附件并转换为 Markdown，请保持页面打开。';
+  state.lastJob = job;
+  $('run-title').textContent = t('s4_title_run');
+  $('run-sub').textContent = t('s4_sub_run');
   const pct = job.progress || 0;
   $('run-percent').textContent = pct + '%';
   $('run-bar').style.width = pct + '%';
   const proj = (job.projects || []).find(p => p.status === 'processing') || (job.projects || [])[0];
-  $('run-label').innerHTML = `<span class="spinner"></span>` +
-    (proj ? `「${escapeHtml(proj.name || proj.gid)}」 ${proj.processed}/${proj.total} 个任务 · ` : '') +
-    `共 ${job.processed_tasks || 0}/${job.total_tasks || 0} 个任务`;
+  if (proj) {
+    $('run-label').innerHTML = `<span class="spinner"></span>` + escapeHtml(t('s4_proj_progress', {
+      name: proj.name || proj.gid, done: proj.processed, total: proj.total,
+      done2: job.processed_tasks || 0, total2: job.total_tasks || 0,
+    }));
+  } else {
+    $('run-label').innerHTML = `<span class="spinner"></span>${escapeHtml(t('s4_preparing'))}`;
+  }
 }
 
 function renderDone(job) {
-  $('run-title').textContent = 'Vault 已生成';
-  $('run-sub').textContent = '下载后解压到你的 Obsidian Vault 目录即可。';
+  state.lastJob = job;
+  $('run-title').textContent = t('s4_title_done');
+  $('run-sub').textContent = t('s4_sub_done');
   $('run-percent').textContent = '100%';
   $('run-bar').style.width = '100%';
   $('run-label').textContent = '';
@@ -655,14 +894,14 @@ function renderDone(job) {
   const tick = () => {
     const ms = state.expiresAt - new Date();
     if (ms <= 0) {
-      cd.textContent = '⏳ 链接已过期，ZIP 已自动销毁。';
+      cd.textContent = t('countdown_expired');
       cd.classList.add('expired');
       $('download-link').style.display = 'none';
       clearInterval(state.cdTimer);
       return;
     }
     const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
-    cd.textContent = `文件将于 ${h} 小时 ${m} 分 ${s} 秒后自动销毁，请尽快下载`;
+    cd.textContent = t('countdown', { h, m, s });
   };
   tick(); state.cdTimer = setInterval(tick, 1000);
   const st = job.stats || {};
@@ -670,23 +909,25 @@ function renderDone(job) {
     const size = st.size_bytes >= 1048576
       ? `${(st.size_bytes / 1048576).toFixed(1)} MB`
       : `${Math.max(1, Math.round(st.size_bytes / 1024))} KB`;
-    $('run-label').textContent = `${st.markdown} 篇笔记 · ${st.attachments || 0} 个附件 · ${size}`;
+    $('run-label').textContent = t('stats', { notes: st.markdown, attachments: st.attachments || 0, size });
   }
 }
 
 function renderFailed(job) {
-  $('run-title').textContent = '导出失败';
+  state.lastJob = job;
+  $('run-title').textContent = t('s4_title_failed');
   $('run-sub').textContent = '';
   $('run-percent').textContent = '—';
   $('run-bar').style.width = '0%';
   $('run-label').textContent = '';
   $('run-done').classList.add('hidden');
   $('run-failed').classList.remove('hidden');
-  $('run-error').textContent = job.error || '导出过程中发生错误，请重试。';
+  $('run-error').textContent = translateServerError(job.error) || t('failed_default');
 }
 
 async function resetFlow() {
   clearInterval(state.pollTimer); clearInterval(state.cdTimer);
+  state.lastJob = null;
   await refreshSession();
   renderConnect();
   showStep(1);
